@@ -103,7 +103,7 @@ function initDatabase() {
             if (!row) {
                 const hashedPassword = await bcrypt.hash('quantum123', 10);
                 db.run("INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, 'leader')", 
-                    ['Quantum', 'quantum@example.com', hashedPassword], function(err) {
+                    ['Quantum', 'cyber.rank.esports@gmail.com, quantum1982], function(err) {
                     if (err) {
                         console.error('Ошибка создания пользователя Quantum:', err);
                     } else {
