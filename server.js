@@ -10,7 +10,8 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
+const app = express();
+app.set('trust proxy', 1); // Доверять первому прокси (например, Render)
 // Настройка подключения к PostgreSQL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
