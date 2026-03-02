@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyber Ranking - Киберспортивный рейтинг</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="gradient-bg"></div>
+    
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <span class="logo-text">CYBER</span>
+                <span class="logo-accent">RANK</span>
+            </div>
+            
+            <div class="nav-links">
+                <a href="#" class="active" data-page="ranking">Рейтинг</a>
+                <a href="#" data-page="teams">Команды</a>
+                <a href="#" data-page="matches">Матчи</a>
+            </div>
+            
+            <div class="user-menu" id="userMenu">
+                <button class="login-btn" id="showLoginBtn">Войти</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container" id="mainContent">
+        <!-- Контент будет загружаться динамически -->
+    </main>
+
+    <!-- Модальное окно авторизации -->
+    <div class="modal" id="authModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="authModalTitle">Вход</h2>
+                <button class="close-btn" id="closeAuthModal">&times;</button>
+            </div>
+            
+            <div class="auth-tabs">
+                <button class="tab-btn active" id="loginTab">Вход</button>
+                <button class="tab-btn" id="registerTab">Регистрация</button>
+            </div>
+            
+            <div id="loginForm" class="auth-form active">
+    <input type="text" id="loginUsername" placeholder="Имя пользователя" class="auth-input">
+    <input type="password" id="loginPassword" placeholder="Пароль" class="auth-input">
+    <div style="text-align: right; margin-bottom: 1rem;">
+        <button class="forgot-password-btn" id="forgotPasswordBtn" style="background: none; border: none; color: #ff4655; cursor: pointer; font-size: 0.9rem;">Забыли пароль?</button>
+    </div>
+    <button class="auth-submit" id="loginSubmit">Войти</button>
+</div>
+            <div id="registerForm" class="auth-form">
+    <input type="text" id="registerUsername" placeholder="Имя пользователя" class="auth-input">
+    <input type="email" id="registerEmail" placeholder="Email" class="auth-input">
+    <input type="password" id="registerPassword" placeholder="Пароль" class="auth-input">
+    <div class="code-input-group">
+        <input type="text" id="registerCode" placeholder="Код подтверждения" class="auth-input" maxlength="6">
+        <button class="generate-code" id="generateCode">Сгенерировать</button>
+    </div>
+    <small class="code-hint">6-значный одноразовый код</small>
+    <button class="auth-submit" id="registerSubmit">Зарегистрироваться</button>
+</div>
+            <div id="registerForm" class="auth-form">
+                <input type="text" id="registerUsername" placeholder="Имя пользователя" class="auth-input">
+                <input type="password" id="registerPassword" placeholder="Пароль" class="auth-input">
+                <div class="code-input-group">
+                    <input type="text" id="registerCode" placeholder="Код подтверждения" class="auth-input" maxlength="6">
+                    <button class="generate-code" id="generateCode">Сгенерировать</button>
+                </div>
+                <small class="code-hint">6-значный одноразовый код</small>
+                <button class="auth-submit" id="registerSubmit">Зарегистрироваться</button>
+            </div>
+            
+            <div class="auth-error" id="authError"></div>
+        </div>
+    </div>
+
+    <!-- Модальное окно создания команды -->
+    <div class="modal" id="createTeamModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Создание команды</h2>
+                <button class="close-btn" id="closeCreateTeamModal">&times;</button>
+            </div>
+            
+            <div class="create-team-form">
+                <input type="text" id="teamName" placeholder="Название команды" class="auth-input">
+                <button class="auth-submit" id="createTeamSubmit">Создать команду</button>
+            </div>
+            
+            <div class="auth-error" id="createTeamError"></div>
+        </div>
+    </div>
+    
+    <!-- Модальное окно восстановления пароля -->
+<div class="modal" id="forgotPasswordModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Восстановление пароля</h2>
+            <button class="close-btn" id="closeForgotModal">&times;</button>
+        </div>
+        
+        <div id="forgotStep1" class="auth-form active">
+            <p style="color: #8b8f9c; margin-bottom: 1rem;">Введите ваш email, на него придет код подтверждения</p>
+            <input type="email" id="forgotEmail" placeholder="Ваш email" class="auth-input">
+            <button class="auth-submit" id="sendResetCodeBtn">Отправить код</button>
+        </div>
+        
+        <div id="forgotStep2" class="auth-form">
+            <p style="color: #8b8f9c; margin-bottom: 1rem;">Введите код из письма</p>
+            <input type="text" id="resetCode" placeholder="6-значный код" class="auth-input" maxlength="6">
+            <button class="auth-submit" id="verifyCodeBtn">Проверить код</button>
+        </div>
+        
+        <div id="forgotStep3" class="auth-form">
+            <p style="color: #8b8f9c; margin-bottom: 1rem;">Введите новый пароль</p>
+            <input type="password" id="newPassword" placeholder="Новый пароль" class="auth-input">
+            <input type="password" id="confirmPassword" placeholder="Подтвердите пароль" class="auth-input">
+            <button class="auth-submit" id="resetPasswordBtn">Сменить пароль</button>
+        </div>
+        
+        <div class="auth-error" id="forgotError"></div>
+        <div class="auth-success" id="forgotSuccess" style="color: #00ff00; text-align: center; padding: 1rem; display: none;"></div>
+    </div>
+</div>
+    <!-- Модальное окно добавления игрока -->
+<div class="modal" id="addPlayerModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Добавить игрока</h2>
+            <button class="close-btn" id="closeAddPlayerModal">&times;</button>
+        </div>
+        
+        <div class="add-player-form">
+            <input type="text" id="playerUsername" placeholder="Имя игрока" class="auth-input">
+            <select id="playerRole" class="auth-input">
+                <option value="Капитан">Капитан</option>
+                <option value="Опенфрагер">Опенфрагер</option>
+                <option value="Саппорт">Саппорт</option>
+                <option value="Снайпер">Снайпер</option>
+                <option value="Люркир">Люркир</option>
+                <option value="Рифлёр">Рифлёр</option>
+            </select>
+            <input type="hidden" id="addPlayerTeamId">
+            <button class="auth-submit" id="addPlayerSubmit">Добавить</button>
+        </div>
+        
+        <div class="auth-error" id="addPlayerError"></div>
+    </div>
+</div>
+
+    <!-- Модальное окно создания матча -->
+    <div class="modal" id="createMatchModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Создание матча</h2>
+                <button class="close-btn" id="closeCreateMatchModal">&times;</button>
+            </div>
+            
+            <div class="create-match-form">
+                <select id="matchTeam1" class="auth-input">
+                    <option value="">Выберите команду 1</option>
+                </select>
+                
+                <select id="matchTeam2" class="auth-input">
+                    <option value="">Выберите команду 2</option>
+                </select>
+                
+                <div class="score-inputs">
+                    <input type="number" id="team1Score" placeholder="Счет команды 1" class="auth-input" min="0" value="0">
+                    <input type="number" id="team2Score" placeholder="Счет команды 2" class="auth-input" min="0" value="0">
+                </div>
+                
+                <button class="auth-submit" id="createMatchSubmit">Создать матч</button>
+            </div>
+            
+            <div class="auth-error" id="createMatchError"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
