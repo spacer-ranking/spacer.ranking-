@@ -3,7 +3,6 @@ const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
-const nodemailer = require('nodemailer');
 const path = require('path');
 const fs = require('fs');
 
@@ -23,16 +22,7 @@ if (!fs.existsSync('uploads')) {
 }
 app.use('/uploads', express.static('uploads'));
 
-// Настройка почтового транспорта
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: 'cyber.rank.esports@gmail.com',
-        pass: 'hnjw ymqy qbse fjrq' // Замените на реальный пароль от почты
-    }
-});
-
-// Хранилище кодов восстановления (в реальном проекте лучше использовать БД)
+// Хранилище кодов восстановления
 const resetCodes = new Map();
 
 // Подключение к базе данных
@@ -45,10 +35,10 @@ const db = new sqlite3.Database('./cyber_ranking.db', (err) => {
     }
 });
 
-// Инициализация таблиц
+// Инициализация таблиц (БЕЗ автоматического создания пользователей)
 function initDatabase() {
     db.serialize(() => {
-        // Таблица пользователей (добавляем поле email)
+        // Таблица пользователей
         db.run(`CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
@@ -98,49 +88,15 @@ function initDatabase() {
             FOREIGN KEY (created_by) REFERENCES users(id)
         )`);
 
-        // Создаем пользователя Quantum с ролью лидера
-        db.get("SELECT * FROM users WHERE username = ?", ['Quantum'], async (err, row) => {
-            if (!row) {
-                const hashedPassword = await bcrypt.hash('quantum123', 10);
-                db.run("INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, 'leader')", 
-                    ['Quantum', 'cyber.rank.esports@gmail.com, quantum1982], function(err) {
-                    if (err) {
-                        console.error('Ошибка создания пользователя Quantum:', err);
-                    } else {
-                        console.log('Пользователь Quantum создан с паролем: quantum123');
-                    }
-                });
-            }
-        });
-
-        // Создаем тестовые команды если их нет
-        db.get("SELECT * FROM teams", (err, row) => {
-            if (!row) {
-                // Получаем ID пользователя Quantum
-                db.get("SELECT id FROM users WHERE username = ?", ['Quantum'], (err, user) => {
-                    if (user) {
-                        // Создаем тестовые команды
-                        db.run("INSERT INTO teams (name, leader_id, rating) VALUES (?, ?, ?)", 
-                            ['NaVi', user.id, 1250]);
-                        db.run("INSERT INTO teams (name, leader_id, rating) VALUES (?, ?, ?)", 
-                            ['G2', user.id, 1150]);
-                        db.run("INSERT INTO teams (name, leader_id, rating) VALUES (?, ?, ?)", 
-                            ['FaZe', user.id, 1100]);
-                        db.run("INSERT INTO teams (name, leader_id, rating) VALUES (?, ?, ?)", 
-                            ['Team Spirit', user.id, 1050]);
-                    }
-                });
-            }
-        });
+        console.log('✅ База данных инициализирована');
+        console.log('📝 Все пользователи создаются только через регистрацию');
     });
 }
 
 // Мидлвар для проверки авторизации
 const authenticateToken = (req, res, next) => {
     const token = req.cookies.token;
-    if (!token) {
-        return res.status(401).json({ error: 'Не авторизован' });
-    }
+    if (!token) return res.status(401).json({ error: 'Не авторизован' });
 
     try {
         const user = jwt.verify(token, SECRET_KEY);
@@ -161,14 +117,13 @@ const isLeader = (req, res, next) => {
 
 // ============== API РОУТЫ ==============
 
-// Регистрация (обновленная с email)
+// Регистрация
 app.post('/api/register', async (req, res) => {
-    console.log('Register request:', req.body);
     const { username, email, password, code } = req.body;
     
-    // Проверка кода подтверждения (6 цифр)
+    // Проверка кода подтверждения
     if (!code || !/^\d{6}$/.test(code)) {
-        return res.status(400).json({ error: 'Неверный код подтверждения (нужен 6-значный код)' });
+        return res.status(400).json({ error: 'Неверный код подтверждения' });
     }
 
     if (!username || !email || !password) {
@@ -207,7 +162,7 @@ app.post('/api/register', async (req, res) => {
             // Хешируем пароль
             const hashedPassword = await bcrypt.hash(password, 10);
             
-            // Создаем пользователя
+            // Создаем пользователя (все новые пользователи получают роль 'user')
             db.run("INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)",
                 [username, email, hashedPassword, 'user'],
                 function(err) {
@@ -230,7 +185,7 @@ app.post('/api/register', async (req, res) => {
                         sameSite: 'lax'
                     });
                     
-                    console.log('User registered:', username);
+                    console.log('✅ Новый пользователь зарегистрирован:', username);
                     res.json({ 
                         success: true, 
                         user: { id: this.lastID, username, email, role: 'user' }
@@ -245,7 +200,6 @@ app.post('/api/register', async (req, res) => {
 
 // Вход
 app.post('/api/login', async (req, res) => {
-    console.log('Login request:', req.body);
     const { username, password } = req.body;
 
     if (!username || !password) {
@@ -282,7 +236,7 @@ app.post('/api/login', async (req, res) => {
                 sameSite: 'lax'
             });
             
-            console.log('User logged in:', username);
+            console.log('✅ Пользователь вошел:', username);
             res.json({ 
                 success: true, 
                 user: { id: user.id, username: user.username, email: user.email, role: user.role }
@@ -298,133 +252,61 @@ app.post('/api/login', async (req, res) => {
 app.post('/api/forgot-password', async (req, res) => {
     const { email } = req.body;
 
-    if (!email) {
-        return res.status(400).json({ error: 'Введите email' });
-    }
-
-    // Проверяем существует ли пользователь с таким email
     db.get("SELECT * FROM users WHERE email = ?", [email], async (err, user) => {
-        if (err) {
-            console.error('Database error:', err);
-            return res.status(500).json({ error: 'Ошибка базы данных' });
-        }
-
         if (!user) {
-            return res.status(404).json({ error: 'Пользователь с таким email не найден' });
+            return res.status(404).json({ error: 'Email не найден' });
         }
 
-        // Генерируем 6-значный код
         const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-        
-        // Сохраняем код с временем жизни 15 минут
         resetCodes.set(email, {
             code: resetCode,
-            expires: Date.now() + 15 * 60 * 1000 // 15 минут
+            expires: Date.now() + 15 * 60 * 1000
         });
 
-        // Отправляем код на почту
-        const mailOptions = {
-            from: 'cyber.rank.esports@gmail.com',
-            to: email,
-            subject: 'Восстановление пароля - Cyber Rank',
-            html: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #0a0c0f; color: #fff; border-radius: 10px; border: 2px solid #ff4655;">
-                    <h1 style="color: #ff4655; text-align: center;">Cyber Rank</h1>
-                    <h2 style="color: #fff; text-align: center;">Восстановление пароля</h2>
-                    <p style="color: #8b8f9c; text-align: center;">Здравствуйте, ${user.username}!</p>
-                    <div style="background: rgba(255, 70, 85, 0.1); padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; border: 1px solid #ff4655;">
-                        <p style="color: #8b8f9c; margin-bottom: 10px;">Ваш код для восстановления пароля:</p>
-                        <div style="font-size: 32px; font-weight: bold; color: #ff4655; letter-spacing: 5px; padding: 10px; background: #000; border-radius: 5px;">${resetCode}</div>
-                        <p style="color: #8b8f9c; margin-top: 10px;">Код действителен 15 минут</p>
-                    </div>
-                    <p style="color: #8b8f9c; text-align: center; font-size: 12px;">Если вы не запрашивали восстановление пароля, проигнорируйте это письмо.</p>
-                </div>
-            `
-        };
-
-        try {
-            await transporter.sendMail(mailOptions);
-            console.log('Reset code sent to:', email);
-            res.json({ success: true, message: 'Код восстановления отправлен на email' });
-        } catch (error) {
-            console.error('Email send error:', error);
-            res.status(500).json({ error: 'Ошибка отправки email' });
-        }
+        // Выводим код в консоль (для тестирования)
+        console.log(`\n🔐 Код восстановления для ${email}: ${resetCode}\n`);
+        
+        res.json({ success: true, message: 'Код восстановления отправлен' });
     });
 });
 
 // Проверка кода восстановления
 app.post('/api/verify-reset-code', (req, res) => {
     const { email, code } = req.body;
-
-    if (!email || !code) {
-        return res.status(400).json({ error: 'Заполните все поля' });
-    }
-
-    const resetData = resetCodes.get(email);
-
-    if (!resetData) {
-        return res.status(400).json({ error: 'Код не найден или истек' });
-    }
-
-    if (Date.now() > resetData.expires) {
-        resetCodes.delete(email);
-        return res.status(400).json({ error: 'Код истек' });
-    }
-
-    if (resetData.code !== code) {
-        return res.status(400).json({ error: 'Неверный код' });
-    }
-
-    res.json({ success: true, message: 'Код подтвержден' });
-});
-
-// Сброс пароля
-app.post('/api/reset-password', async (req, res) => {
-    const { email, code, newPassword } = req.body;
-
-    if (!email || !code || !newPassword) {
-        return res.status(400).json({ error: 'Заполните все поля' });
-    }
-
-    if (newPassword.length < 4) {
-        return res.status(400).json({ error: 'Пароль должен быть не менее 4 символов' });
-    }
-
     const resetData = resetCodes.get(email);
 
     if (!resetData || resetData.code !== code || Date.now() > resetData.expires) {
         return res.status(400).json({ error: 'Недействительный код' });
     }
 
-    try {
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-        db.run("UPDATE users SET password = ? WHERE email = ?", [hashedPassword, email], function(err) {
-            if (err) {
-                console.error('Password update error:', err);
-                return res.status(500).json({ error: 'Ошибка обновления пароля' });
-            }
-
-            // Удаляем использованный код
-            resetCodes.delete(email);
-
-            res.json({ success: true, message: 'Пароль успешно изменен' });
-        });
-    } catch (error) {
-        console.error('Reset password error:', error);
-        res.status(500).json({ error: 'Ошибка сервера' });
-    }
+    res.json({ success: true });
 });
 
-// Остальные API роуты (без изменений)...
-// [Здесь вставьте все остальные роуты из предыдущего server.js]
+// Сброс пароля
+app.post('/api/reset-password', async (req, res) => {
+    const { email, code, newPassword } = req.body;
+    const resetData = resetCodes.get(email);
+
+    if (!resetData || resetData.code !== code || Date.now() > resetData.expires) {
+        return res.status(400).json({ error: 'Недействительный код' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    db.run("UPDATE users SET password = ? WHERE email = ?", [hashedPassword, email], function(err) {
+        if (err) {
+            return res.status(500).json({ error: 'Ошибка обновления пароля' });
+        }
+        
+        resetCodes.delete(email);
+        console.log('✅ Пароль изменен для:', email);
+        res.json({ success: true });
+    });
+});
+
 // Получение текущего пользователя
 app.get('/api/me', (req, res) => {
     const token = req.cookies.token;
-    if (!token) {
-        return res.json(null);
-    }
+    if (!token) return res.json(null);
 
     try {
         const user = jwt.verify(token, SECRET_KEY);
@@ -433,6 +315,12 @@ app.get('/api/me', (req, res) => {
         res.clearCookie('token');
         res.json(null);
     }
+});
+
+// Выход
+app.post('/api/logout', (req, res) => {
+    res.clearCookie('token');
+    res.json({ success: true });
 });
 
 // Получение рейтинга команд
@@ -542,6 +430,7 @@ app.post('/api/teams', authenticateToken, isLeader, (req, res) => {
                 db.run("INSERT INTO team_members (team_id, user_id) VALUES (?, ?)",
                     [this.lastID, req.user.id]);
                 
+                console.log('✅ Команда создана:', name, 'лидер:', req.user.username);
                 res.json({ success: true, id: this.lastID, name });
             });
     });
@@ -573,6 +462,7 @@ app.post('/api/teams/:teamId/members', authenticateToken, isLeader, (req, res) =
                     if (err) {
                         return res.status(500).json({ error: 'Ошибка добавления игрока' });
                     }
+                    console.log('✅ Игрок добавлен в команду:', username);
                     res.json({ success: true, message: 'Игрок добавлен в команду' });
                 });
         });
@@ -614,6 +504,7 @@ app.post('/api/matches', authenticateToken, isLeader, (req, res) => {
             db.run("UPDATE teams SET rating = rating - 25 WHERE id = ?", [loser_id]);
         }
         
+        console.log('✅ Матч создан');
         res.json({ success: true, match_id: this.lastID });
     });
 });
@@ -640,14 +531,16 @@ app.get('/api/matches', (req, res) => {
     });
 });
 
-// Выход
-app.post('/api/logout', (req, res) => {
-    res.clearCookie('token');
-    res.json({ success: true });
-});
+// Функция для выдачи роли лидера (только через прямой запрос к БД)
+// Это можно сделать через отдельный API эндпоинт или вручную
 
 // Запуск сервера
 app.listen(PORT, () => {
-    console.log(`Сервер запущен на порту ${PORT}`);
-    console.log(`Локальный доступ: http://localhost:${PORT}`);
+    console.log(`\n🚀 Сервер запущен на порту ${PORT}`);
+    console.log(`📱 Локальный доступ: http://localhost:${PORT}`);
+    console.log(`\n📝 Информация:`);
+    console.log(`   • Все пользователи создаются через регистрацию`);
+    console.log(`   • По умолчанию все получают роль 'user'`);
+    console.log(`   • Роль 'leader' выдается отдельно`);
+    console.log(`   • База данных: cyber_ranking.db\n`);
 });
